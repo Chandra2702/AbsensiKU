@@ -10,7 +10,7 @@ interface ReportsProps {
 }
 
 const Reports: React.FC<ReportsProps> = ({ students, records }) => {
-  const [timeframe, setTimeframe] = useState<'week' | 'month'>('week');
+  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
   const [selectedClass, setSelectedClass] = useState<string>('Semua Kelas');
 
   const summaries: StudentSummary[] = useMemo(() => {
@@ -19,30 +19,47 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
       ? students
       : students.filter(s => s.classGrade === selectedClass);
 
-    // 2. Calculate cutoff date
+    // 2. Calculate dates
     const now = new Date();
-    const cutoffDate = new Date(now);
+    const todayStr = now.toISOString().split('T')[0];
     
+    // Calculate past date for ranges
+    const cutoffDate = new Date(now);
     if (timeframe === 'week') {
       cutoffDate.setDate(now.getDate() - 7);
-    } else {
+    } else if (timeframe === 'month') {
       cutoffDate.setDate(now.getDate() - 30);
     }
-    
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
 
     return filteredStudents.map(student => {
-      // 3. Filter records for student AND date
-      const studentRecords = records.filter(r => 
-        r.studentId === student.id && 
-        r.date >= cutoffStr
-      );
+      // 3. Filter records for student based on timeframe
+      const studentRecords = records.filter(r => {
+        if (r.studentId !== student.id) return false;
+        
+        if (timeframe === 'day') {
+          // Exact match for today
+          return r.date === todayStr;
+        } else {
+          // Range match for week/month
+          return r.date >= cutoffStr;
+        }
+      });
       
       const totalHadir = studentRecords.filter(r => r.status === 'Hadir').length;
       const totalTidak = studentRecords.filter(r => r.status === 'Tidak').length;
       
+      // For daily, usually totalEntries is 1 or 0. For range, it's cumulative.
       const totalEntries = studentRecords.length;
-      const attendanceRate = totalEntries > 0 ? Math.round((totalHadir / totalEntries) * 100) : 0;
+      
+      // Calculate rate. Prevent division by zero.
+      let attendanceRate = 0;
+      if (totalEntries > 0) {
+        attendanceRate = Math.round((totalHadir / totalEntries) * 100);
+      } else if (timeframe === 'day') {
+        // If daily and no record, it's 0% (Belum Absen)
+        attendanceRate = 0;
+      }
 
       return {
         student,
@@ -50,13 +67,25 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
         totalTidak,
         attendanceRate
       };
-    }).sort((a, b) => b.totalTidak - a.totalTidak); // Sort by most absent
+    }).sort((a, b) => {
+        // Sort logic: 
+        // If daily: Sort by name (easier to check list)
+        // If weekly/monthly: Sort by most absent (to identify issues)
+        if (timeframe === 'day') {
+            return a.student.name.localeCompare(b.student.name);
+        }
+        return b.totalTidak - a.totalTidak;
+    });
   }, [students, records, timeframe, selectedClass]);
 
   const handleExportReport = () => {
+    let timeframeLabel = 'Mingguan';
+    if (timeframe === 'day') timeframeLabel = 'Harian';
+    if (timeframe === 'month') timeframeLabel = 'Bulanan';
+
     let csvContent = "data:text/csv;charset=utf-8,";
     // Header Laporan
-    csvContent += `Laporan Rekapitulasi Absensi (${timeframe === 'week' ? 'Mingguan' : 'Bulanan'})\n`;
+    csvContent += `Laporan Rekapitulasi Absensi (${timeframeLabel})\n`;
     csvContent += `Kelas: ${selectedClass}\n`;
     csvContent += `Tanggal Ekspor: ${new Date().toLocaleDateString('id-ID')}\n\n`;
     
@@ -78,45 +107,62 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
     document.body.removeChild(link);
   };
 
+  const getTimeframeLabel = () => {
+      if (timeframe === 'day') return 'Hari Ini';
+      if (timeframe === 'week') return '7 Hari Terakhir';
+      return '30 Hari Terakhir';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Laporan & Rekapitulasi</h2>
-          <p className="text-gray-500">Analisa kehadiran siswa {timeframe === 'week' ? '7 hari terakhir' : '30 hari terakhir'}.</p>
+          <p className="text-gray-500">Analisa kehadiran siswa ({getTimeframeLabel()}).</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-stretch sm:items-center">
+        {/* Controls Container */}
+        <div className="flex flex-col gap-3 w-full xl:w-auto">
             
-             <button 
-              onClick={handleExportReport}
-              className="bg-success hover:bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium shadow-sm transition-colors whitespace-nowrap"
-              title="Download format Excel/Google Sheets"
-            >
-              <FileSpreadsheet size={18} />
-              <span>Export Laporan</span>
-            </button>
-
-             {/* Class Filter */}
-             <div className="relative">
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full sm:w-auto appearance-none bg-white border border-slate-200 text-gray-700 py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer"
+            {/* Row 1: Export & Class Filter (Stacked on very small, row on small+) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                 <button 
+                  onClick={handleExportReport}
+                  className="bg-success hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors w-full"
+                  title="Download format Excel/Google Sheets"
                 >
-                  <option value="Semua Kelas">Semua Kelas</option>
-                  {AVAILABLE_CLASSES.map(cls => (
-                    <option key={cls} value={cls}>{cls}</option>
-                  ))}
-                </select>
-                <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <FileSpreadsheet size={18} />
+                  <span>Export CSV</span>
+                </button>
+
+                 <div className="relative w-full">
+                    <select
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      className="w-full appearance-none bg-white border border-slate-200 text-gray-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer"
+                    >
+                      <option value="Semua Kelas">Semua Kelas</option>
+                      {AVAILABLE_CLASSES.map(cls => (
+                        <option key={cls} value={cls}>{cls}</option>
+                      ))}
+                    </select>
+                    <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
             </div>
 
-            {/* Timeframe Toggles */}
-            <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+            {/* Row 2: Timeframe Toggles */}
+            <div className="flex bg-white rounded-xl p-1 border border-slate-200 shadow-sm w-full">
+               <button
+                onClick={() => setTimeframe('day')}
+                className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  timeframe === 'day' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                Harian
+              </button>
               <button
                 onClick={() => setTimeframe('week')}
-                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                   timeframe === 'week' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
@@ -124,7 +170,7 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
               </button>
               <button
                 onClick={() => setTimeframe('month')}
-                className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                   timeframe === 'month' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
@@ -139,7 +185,7 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
             <h3 className="font-bold text-gray-800">
-              Rekapitulasi Siswa (Diurutkan berdasarkan Ketidakhadiran)
+              Rekapitulasi Siswa ({getTimeframeLabel()})
             </h3>
           </div>
           <div className="overflow-x-auto">
@@ -149,7 +195,7 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Nama Siswa</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Kelas</th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Total Hadir</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-red-500 uppercase">Tidak Hadir</th>
+                  <th className="px-6 py-4 text-center text-xs font-semibold text-red-500 uppercase">Total Tidak</th>
                   <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">% Kehadiran</th>
                 </tr>
               </thead>

@@ -75,13 +75,15 @@ const Dashboard: React.FC<DashboardProps> = ({ students, records }) => {
   }, [records, filteredStudents]);
 
   const StatCard = ({ title, value, icon: Icon, color, bg }: any) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-        <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
+    <div className="bg-white p-3 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-full relative overflow-hidden">
+      <div className="flex items-start justify-between mb-2">
+         <div className={`p-1.5 sm:p-3 rounded-lg sm:rounded-xl ${bg}`}>
+          <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${color}`} />
+        </div>
       </div>
-      <div className={`p-3 rounded-xl ${bg}`}>
-        <Icon className={`w-6 h-6 ${color}`} />
+      <div>
+        <h3 className="text-xl sm:text-3xl font-bold text-gray-800 leading-tight">{value}</h3>
+        <p className="text-[10px] sm:text-sm font-medium text-gray-500 leading-tight mt-1">{title}</p>
       </div>
     </div>
   );
@@ -90,16 +92,16 @@ const Dashboard: React.FC<DashboardProps> = ({ students, records }) => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Dashboard Overview</h2>
-          <p className="text-gray-500">Ringkasan kehadiran hari ini, {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard Overview</h2>
+          <p className="text-sm text-gray-500">Ringkasan kehadiran hari ini, {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         
         {/* Class Filter */}
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 text-gray-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer"
+              className="w-full appearance-none bg-white border border-slate-200 text-gray-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer"
             >
               <option value="Semua Kelas">Semua Kelas</option>
               {AVAILABLE_CLASSES.map(cls => (
@@ -110,8 +112,8 @@ const Dashboard: React.FC<DashboardProps> = ({ students, records }) => {
         </div>
       </div>
 
-      {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Top Stats Cards - Grid changed to 2 columns on mobile */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatCard title="Total Siswa" value={filteredStudents.length} icon={Users} color="text-primary" bg="bg-primary/10" />
         <StatCard title="Hadir" value={todayStats.hadir} icon={UserCheck} color="text-success" bg="bg-success/10" />
         <StatCard title="Tidak Hadir" value={todayStats.tidak} icon={UserX} color="text-danger" bg="bg-danger/10" />
