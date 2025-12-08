@@ -25,8 +25,11 @@ const App: React.FC = () => {
 
   // Check Auth on Mount
   useEffect(() => {
-    const storedAuth = localStorage.getItem('absensiku_auth');
-    if (storedAuth === 'true') {
+    // Check both local storage (persistent) and session storage (session only)
+    const storedAuthLocal = localStorage.getItem('absensiku_auth');
+    const storedAuthSession = sessionStorage.getItem('absensiku_auth');
+    
+    if (storedAuthLocal === 'true' || storedAuthSession === 'true') {
       setIsAuthenticated(true);
     }
     setAuthChecked(true);
@@ -63,11 +66,15 @@ const App: React.FC = () => {
   }, [isAuthenticated]);
 
   // Auth Handlers
-  const handleLogin = (u: string, p: string): boolean => {
+  const handleLogin = (u: string, p: string, remember: boolean): boolean => {
     // HARDCODED CREDENTIALS
     // In a real app, check against a server or encrypted storage
     if (u === 'admin' && p === 'admin123') {
-      localStorage.setItem('absensiku_auth', 'true');
+      if (remember) {
+        localStorage.setItem('absensiku_auth', 'true');
+      } else {
+        sessionStorage.setItem('absensiku_auth', 'true');
+      }
       setIsAuthenticated(true);
       return true;
     }
@@ -77,6 +84,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     if (window.confirm('Apakah Anda yakin ingin keluar?')) {
       localStorage.removeItem('absensiku_auth');
+      sessionStorage.removeItem('absensiku_auth');
       setIsAuthenticated(false);
       setStudents([]);
       setRecords([]);

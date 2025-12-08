@@ -124,22 +124,22 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
         {/* Controls Container */}
         <div className="flex flex-col gap-3 w-full xl:w-auto">
             
-            {/* Row 1: Export & Class Filter (Stacked on very small, row on small+) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Row 1: Export & Class Filter (Side by side on mobile) */}
+            <div className="grid grid-cols-2 gap-3">
                  <button 
                   onClick={handleExportReport}
-                  className="bg-success hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors w-full"
+                  className="bg-success hover:bg-emerald-600 text-white px-2 sm:px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 font-medium shadow-sm transition-colors w-full"
                   title="Download format Excel/Google Sheets"
                 >
                   <FileSpreadsheet size={18} />
-                  <span>Export CSV</span>
+                  <span className="text-xs sm:text-base whitespace-nowrap">Export CSV</span>
                 </button>
 
                  <div className="relative w-full">
                     <select
                       value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value)}
-                      className="w-full appearance-none bg-white border border-slate-200 text-gray-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer"
+                      className="w-full appearance-none bg-white border border-slate-200 text-gray-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium shadow-sm cursor-pointer text-xs sm:text-base"
                     >
                       <option value="Semua Kelas">Semua Kelas</option>
                       {AVAILABLE_CLASSES.map(cls => (

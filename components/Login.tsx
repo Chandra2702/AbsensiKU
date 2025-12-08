@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Lock, User, GraduationCap, ArrowRight, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (username: string, password: string) => boolean;
+  onLogin: (username: string, password: string, remember: boolean) => boolean;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,7 +20,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     // Simulate network delay for UX
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const success = onLogin(username, password);
+    const success = onLogin(username, password, rememberMe);
     if (!success) {
       setError('Username atau Password salah!');
       setIsLoading(false);
@@ -78,6 +79,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   required
                 />
               </div>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+                Ingat Saya
+              </label>
             </div>
 
             <button
