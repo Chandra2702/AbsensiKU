@@ -1,12 +1,13 @@
 import React from 'react';
-import { LayoutDashboard, Users, PieChart, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Users, PieChart, GraduationCap, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
+  onLogout?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Daftar Siswa', icon: Users },
@@ -43,9 +44,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 space-y-4">
+        {onLogout && (
+          <button 
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"
+          >
+            <LogOut size={20} />
+            <span className="font-medium">Keluar</span>
+          </button>
+        )}
+
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-          <p className="text-sm font-bold text-gray-800 mb-0.5">SD Negeri 01</p>
+          <p className="text-sm font-bold text-gray-800 mb-0.5">SMP Terpadu AKN Marzuqi</p>
           <p className="text-xs text-gray-500 font-medium">Tahun Ajaran 2024/2025</p>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Student, AttendanceRecord, StudentSummary } from '../types';
 import { AVAILABLE_CLASSES } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Filter } from 'lucide-react';
+import { Filter, FileSpreadsheet } from 'lucide-react';
 
 interface ReportsProps {
   students: Student[];
@@ -53,6 +53,31 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
     }).sort((a, b) => b.totalTidak - a.totalTidak); // Sort by most absent
   }, [students, records, timeframe, selectedClass]);
 
+  const handleExportReport = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    // Header Laporan
+    csvContent += `Laporan Rekapitulasi Absensi (${timeframe === 'week' ? 'Mingguan' : 'Bulanan'})\n`;
+    csvContent += `Kelas: ${selectedClass}\n`;
+    csvContent += `Tanggal Ekspor: ${new Date().toLocaleDateString('id-ID')}\n\n`;
+    
+    // Header Tabel
+    csvContent += "Nama Siswa,Kelas,Total Hadir,Total Tidak,Persentase Kehadiran\n";
+
+    summaries.forEach(summary => {
+      const row = `"${summary.student.name}",${summary.student.classGrade},${summary.totalHadir},${summary.totalTidak},${summary.attendanceRate}%`;
+      csvContent += row + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const fileName = `laporan_rekap_${timeframe}_${selectedClass.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
@@ -61,7 +86,17 @@ const Reports: React.FC<ReportsProps> = ({ students, records }) => {
           <p className="text-gray-500">Analisa kehadiran siswa {timeframe === 'week' ? '7 hari terakhir' : '30 hari terakhir'}.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-stretch sm:items-center">
+            
+             <button 
+              onClick={handleExportReport}
+              className="bg-success hover:bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 font-medium shadow-sm transition-colors whitespace-nowrap"
+              title="Download format Excel/Google Sheets"
+            >
+              <FileSpreadsheet size={18} />
+              <span>Export Laporan</span>
+            </button>
+
              {/* Class Filter */}
              <div className="relative">
                 <select

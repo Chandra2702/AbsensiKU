@@ -3,49 +3,177 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Students from './pages/Students';
 import Reports from './pages/Reports';
-import { getStoredStudents, getStoredAttendance, saveStudent, saveAttendance, deleteStudentFromStorage } from './services/storage';
+import Login from './components/Login'; // Import Login Component
+import { getStoredStudents, getStoredAttendance, saveStudent, updateStudent, saveAttendance, deleteStudentFromStorage } from './services/storage';
 import { Student, AttendanceRecord, AttendanceStatus } from './types';
-import { Menu } from 'lucide-react';
+import { Menu, Loader2, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
-  // State
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // App State
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [students, setStudents] = useState<Student[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Loading & Error States
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load Initial Data
+  // Check Auth on Mount
   useEffect(() => {
-    setStudents(getStoredStudents());
-    setRecords(getStoredAttendance());
+    const storedAuth = localStorage.getItem('absensiku_auth');
+    if (storedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+    setAuthChecked(true);
   }, []);
 
-  // Handlers
-  const handleAddStudent = (newStudent: Student) => {
-    const updated = saveStudent(newStudent);
-    setStudents(updated);
+  // Load Initial Data
+  const loadData = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Small delay to simulate loading for UX
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const [fetchedStudents, fetchedRecords] = await Promise.all([
+        getStoredStudents(),
+        getStoredAttendance()
+      ]);
+      setStudents(fetchedStudents);
+      setRecords(fetchedRecords);
+    } catch (err) {
+      console.error(err);
+      setError("Gagal memuat data. Silakan refresh halaman.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteStudent = (studentId: string) => {
-    const updatedStudents = deleteStudentFromStorage(studentId);
-    setStudents(updatedStudents);
-    // Refresh records as well since we deleted related attendance
-    setRecords(getStoredAttendance());
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
+
+  // Auth Handlers
+  const handleLogin = (u: string, p: string): boolean => {
+    // HARDCODED CREDENTIALS
+    // In a real app, check against a server or encrypted storage
+    if (u === 'admin' && p === 'admin123') {
+      localStorage.setItem('absensiku_auth', 'true');
+      setIsAuthenticated(true);
+      return true;
+    }
+    return false;
   };
 
-  const handleUpdateAttendance = (studentId: string, status: AttendanceStatus, date: string) => {
+  const handleLogout = () => {
+    if (window.confirm('Apakah Anda yakin ingin keluar?')) {
+      localStorage.removeItem('absensiku_auth');
+      setIsAuthenticated(false);
+      setStudents([]);
+      setRecords([]);
+    }
+  };
+
+  // Data Handlers
+  const handleAddStudent = async (newStudent: Student) => {
+    try {
+      setStudents(prev => [...prev, newStudent]);
+      await saveStudent(newStudent);
+    } catch (err) {
+      alert("Gagal menyimpan data.");
+      loadData();
+    }
+  };
+
+  const handleUpdateStudent = async (updatedStudent: Student) => {
+    try {
+      setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+      await updateStudent(updatedStudent);
+    } catch (err) {
+      alert("Gagal mengupdate data.");
+      loadData();
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      setStudents(prev => prev.filter(s => s.id !== studentId));
+      setRecords(prev => prev.filter(r => r.studentId !== studentId));
+      await deleteStudentFromStorage(studentId);
+    } catch (err) {
+      alert("Gagal menghapus siswa.");
+      loadData();
+    }
+  };
+
+  const handleUpdateAttendance = async (studentId: string, status: AttendanceStatus, date: string) => {
     const newRecord: AttendanceRecord = {
       id: `${studentId}-${date}`,
       studentId,
       date,
       status
     };
-    const updated = saveAttendance(newRecord);
-    setRecords(updated);
+
+    try {
+      setRecords(prev => {
+        const filtered = prev.filter(r => r.id !== newRecord.id);
+        return [...filtered, newRecord];
+      });
+      await saveAttendance(newRecord);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menyimpan absensi.");
+      loadData();
+    }
   };
+  
+  const handleDataReload = () => {
+    loadData();
+  };
+
+  // 1. Initial Auth Check Loading
+  if (!authChecked) {
+    return null; // Or a splash screen
+  }
+
+  // 2. Not Authenticated -> Show Login
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   // Render Page Content
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-primary">
+          <Loader2 className="w-12 h-12 animate-spin mb-4" />
+          <p className="font-medium text-gray-500">Memuat Data...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+       return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-danger text-center max-w-md mx-auto">
+          <AlertCircle className="w-16 h-16 mb-4" />
+          <h3 className="text-xl font-bold mb-2">Terjadi Kesalahan</h3>
+          <p className="text-gray-500 mb-6">{error}</p>
+          <button onClick={loadData} className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700">
+            Coba Lagi
+          </button>
+        </div>
+      );
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard students={students} records={records} />;
@@ -55,6 +183,7 @@ const App: React.FC = () => {
             students={students} 
             records={records} 
             onAddStudent={handleAddStudent}
+            onUpdateStudent={handleUpdateStudent}
             onDeleteStudent={handleDeleteStudent}
             onUpdateAttendance={handleUpdateAttendance}
           />
@@ -77,12 +206,16 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Sidebar (Responsive wrapper) */}
+      {/* Sidebar */}
       <div className={`fixed md:relative z-40 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-        <Sidebar currentPage={currentPage} onNavigate={(page) => {
-          setCurrentPage(page);
-          setIsMobileMenuOpen(false);
-        }} />
+        <Sidebar 
+          currentPage={currentPage} 
+          onNavigate={(page) => {
+            setCurrentPage(page);
+            setIsMobileMenuOpen(false);
+          }} 
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* Main Content Area */}
