@@ -117,8 +117,8 @@ npm run seed --prefix "$APP_DIR"
 if [ "$WEB_PORT" -lt 1024 ]; then
     echo -e "\n${YELLOW}[!] Membutuhkan Port Khusus (<1024)...${NC}"
     echo -e "Memberikan hak akses 'cap_net_bind_service' ke binary Node.js agar bisa berjalan di Port $WEB_PORT tanpa sudo."
-    NODE_BIN=\$(readlink -f \$(which node))
-    setcap cap_net_bind_service=+ep "\$NODE_BIN"
+    NODE_BIN=$(readlink -f $(which node))
+    setcap cap_net_bind_service=+ep "$NODE_BIN"
     echo -e "${GREEN}✓ Izin Binding Port <= 1024 ditambahkan.${NC}"
 fi
 
