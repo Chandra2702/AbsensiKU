@@ -63,16 +63,16 @@ fi
 echo -e "${GREEN}✓ Komponen platform berhasil disiapkan.${NC}"
 
 echo -e "\n${YELLOW}[2/7] Konfigurasi Aplikasi...${NC}"
-read -p "Masukkan Port Web yang diinginkan [default: 3000]: " WEB_PORT
+read -p "Masukkan Port Web yang diinginkan [default: 3000]: " WEB_PORT </dev/tty
 WEB_PORT=${WEB_PORT:-3000}
 
-read -p "Masukkan Username Database Baru [default: absensiku]: " DB_USER
+read -p "Masukkan Username Database Baru [default: absensiku]: " DB_USER </dev/tty
 DB_USER=${DB_USER:-absensiku}
 
-read -p "Masukkan Password untuk User '$DB_USER' [default: admin123]: " DB_PASS
+read -p "Masukkan Password untuk User '\$DB_USER' [default: admin123]: " DB_PASS </dev/tty
 DB_PASS=${DB_PASS:-admin123}
 
-read -p "Masukkan Nama Database [default: absensiku]: " DB_NAME
+read -p "Masukkan Nama Database [default: absensiku]: " DB_NAME </dev/tty
 DB_NAME=${DB_NAME:-absensiku}
 
 echo -e "\n${YELLOW}[3/7] Membuat File Konfigurasi Lingkungan (.env)...${NC}"
