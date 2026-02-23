@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, GraduationCap, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, User, GraduationCap, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (username: string, password: string, remember: boolean) => boolean;
@@ -8,6 +8,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +37,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="inline-flex p-3 bg-white rounded-xl shadow-sm mb-4">
             <GraduationCap className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">SMP Terpadu AKN Marzuqi</h1>
+          <h1 className="text-2xl font-bold text-gray-800 leading-tight">
+            Selamat Datang Di <br />
+            <span className="text-primary">AbsensiKU</span>
+          </h1>
           <p className="text-gray-500 mt-2 text-sm">Silakan login untuk mengakses dashboard absensi</p>
         </div>
 
@@ -71,13 +75,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-gray-800"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-gray-800"
                   placeholder="Masukkan password"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 
@@ -113,9 +124,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center border-t border-slate-100 pt-6">
             <p className="text-xs text-gray-400">
-              AbsensiKu v1.0 &copy; 2024
+              AbsensiKu v1.0 &copy; 2025 <br />
+              <span className="mt-1 block text-gray-300">by Indah Lutfiyah</span>
             </p>
           </div>
         </div>

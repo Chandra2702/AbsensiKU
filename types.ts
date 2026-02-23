@@ -1,3 +1,4 @@
+
 export type AttendanceStatus = 'Hadir' | 'Tidak';
 
 export interface Student {
@@ -10,8 +11,10 @@ export interface Student {
 export interface AttendanceRecord {
   id: string;
   studentId: string;
-  date: string; // ISO Date String YYYY-MM-DD
+  date: string; // ISO Date String YYYY-MM-DD (Tanggal Absensi)
   status: AttendanceStatus;
+  recordedBy?: string; // Username penginput
+  timestamp?: string; // Waktu spesifik penginputan (ISO String lengkap)
 }
 
 export interface DailyStats {
@@ -25,4 +28,11 @@ export interface StudentSummary {
   totalHadir: number;
   totalTidak: number;
   attendanceRate: number;
+}
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  password: string; // Stored as plain text for this demo/frontend-only app
+  role: 'admin' | 'user';
 }
