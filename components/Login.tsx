@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Lock, User, GraduationCap, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (username: string, password: string, remember: boolean) => boolean;
+  onLogin: (username: string, password: string, remember: boolean) => Promise<boolean>;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -31,7 +31,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-        
+
         {/* Header Section */}
         <div className="bg-primary/5 p-8 text-center border-b border-primary/10">
           <div className="inline-flex p-3 bg-white rounded-xl shadow-sm mb-4">
@@ -47,7 +47,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         {/* Form Section */}
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            
+
             {error && (
               <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
                 <AlertCircle size={16} />

@@ -5,23 +5,24 @@ import Students from './pages/Students';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Login from './components/Login';
-import { 
-  getStoredStudents, 
-  getStoredAttendance, 
-  saveStudent, 
-  updateStudent, 
-  saveAttendance, 
+import {
+  getStoredStudents,
+  getStoredAttendance,
+  saveStudent,
+  updateStudent,
+  saveAttendance,
   deleteStudentFromStorage,
-  getAcademicYear,
   saveAcademicYear,
-  getSchoolName,
   saveSchoolName,
   deleteDataByClass,
   moveClassData,
-  initializeDefaultUsers,
   getStoredUsers,
   saveUserAccount,
-  deleteUserAccount
+  deleteUserAccount,
+  apiLogin,
+  apiLogout,
+  apiCheckAuth,
+  getSettings
 } from './services/storage';
 import { Student, AttendanceRecord, AttendanceStatus, UserAccount } from './types';
 import { Menu, Loader2, AlertCircle, LogOut } from 'lucide-react';
@@ -40,57 +41,54 @@ const App: React.FC = () => {
   const [academicYear, setAcademicYear] = useState('2024/2025');
   const [schoolName, setSchoolName] = useState('SMP Terpadu AKN Marzuqi');
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
-  
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  
+
   // Loading & Error States
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check Auth on Mount & Init Users
+  // Check Auth on Mount via API session
   useEffect(() => {
-    // Ensure default users exist locally, but loadData will overwrite from server
-    initializeDefaultUsers();
-
-    const storedAuthLocal = localStorage.getItem('absensiku_auth');
-    const storedAuthSession = sessionStorage.getItem('absensiku_auth');
-    const storedRoleLocal = localStorage.getItem('absensiku_role');
-    const storedRoleSession = sessionStorage.getItem('absensiku_role');
-    const storedUsername = localStorage.getItem('absensiku_username') || sessionStorage.getItem('absensiku_username') || '';
-    
-    if (storedAuthLocal === 'true') {
-      setIsAuthenticated(true);
-      setUserRole((storedRoleLocal as 'admin' | 'user') || 'admin');
-      setCurrentUserUsername(storedUsername);
-    } else if (storedAuthSession === 'true') {
-      setIsAuthenticated(true);
-      setUserRole((storedRoleSession as 'admin' | 'user') || 'admin');
-      setCurrentUserUsername(storedUsername);
-    }
-    setAuthChecked(true);
+    const checkAuth = async () => {
+      try {
+        const result = await apiCheckAuth();
+        if (result && result.user) {
+          setIsAuthenticated(true);
+          setUserRole(result.user.role);
+          setCurrentUserUsername(result.user.username);
+        }
+      } catch {
+        // Not authenticated
+      }
+      setAuthChecked(true);
+    };
+    checkAuth();
   }, []);
 
   // Load Data
   const loadData = async (silent: boolean = false) => {
     if (!isAuthenticated) return;
-    
+
     if (!silent) setIsLoading(true);
     setError(null);
-    
+
     try {
-      if (!silent) await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const [fetchedStudents, fetchedRecords] = await Promise.all([
-        getStoredStudents(), // This calls pullFromServer internally which updates USERS too
-        getStoredAttendance()
+      if (!silent) await new Promise(resolve => setTimeout(resolve, 300));
+
+      const [fetchedStudents, fetchedRecords, settings, users] = await Promise.all([
+        getStoredStudents(),
+        getStoredAttendance(),
+        getSettings(),
+        getStoredUsers().catch(() => []) // Users might fail for non-admin
       ]);
       setStudents(fetchedStudents);
       setRecords(fetchedRecords);
-      setAcademicYear(getAcademicYear());
-      setSchoolName(getSchoolName());
-      setUserAccounts(getStoredUsers()); // Read the now-updated users from local storage
+      setAcademicYear(settings.academic_year || '2024/2025');
+      setSchoolName(settings.school_name || 'SMP Terpadu AKN Marzuqi');
+      setUserAccounts(users);
     } catch (err) {
       console.error(err);
       if (!silent) setError("Gagal memuat data. Silakan refresh halaman.");
@@ -117,40 +115,30 @@ const App: React.FC = () => {
   }, [isAuthenticated]);
 
   // Handlers
-  const handleLogin = (u: string, p: string, remember: boolean): boolean => {
-    const users = getStoredUsers();
-    const foundUser = users.find(user => user.username === u && user.password === p);
-
-    if (foundUser) {
-      setUserRole(foundUser.role);
-      setIsAuthenticated(true);
-      setCurrentUserUsername(foundUser.username);
-      
-      if (remember) {
-        localStorage.setItem('absensiku_auth', 'true');
-        localStorage.setItem('absensiku_role', foundUser.role);
-        localStorage.setItem('absensiku_username', foundUser.username);
-      } else {
-        sessionStorage.setItem('absensiku_auth', 'true');
-        sessionStorage.setItem('absensiku_role', foundUser.role);
-        sessionStorage.setItem('absensiku_username', foundUser.username);
+  const handleLogin = async (u: string, p: string, _remember: boolean): Promise<boolean> => {
+    try {
+      const result = await apiLogin(u, p);
+      if (result.user) {
+        setUserRole(result.user.role);
+        setIsAuthenticated(true);
+        setCurrentUserUsername(result.user.username);
+        return true;
       }
-      return true;
+      return false;
+    } catch {
+      return false;
     }
-
-    return false;
   };
 
   const handleLogoutRequest = () => setIsLogoutModalOpen(true);
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem('absensiku_auth');
-    localStorage.removeItem('absensiku_role');
-    localStorage.removeItem('absensiku_username');
-    sessionStorage.removeItem('absensiku_auth');
-    sessionStorage.removeItem('absensiku_role');
-    sessionStorage.removeItem('absensiku_username');
+  const handleLogoutConfirm = async () => {
+    try {
+      await apiLogout();
+    } catch {
+      // Logout even if API call fails
+    }
     setIsAuthenticated(false);
-    setUserRole('admin'); // reset default
+    setUserRole('admin');
     setCurrentUserUsername('');
     setStudents([]);
     setRecords([]);
@@ -195,8 +183,8 @@ const App: React.FC = () => {
       studentId,
       date,
       status,
-      recordedBy: currentUserUsername, // Add Audit Log
-      timestamp: new Date().toISOString() // Add Timestamp
+      recordedBy: currentUserUsername,
+      timestamp: new Date().toISOString()
     };
     try {
       setRecords(prev => {
@@ -209,28 +197,28 @@ const App: React.FC = () => {
       loadData();
     }
   };
-  
+
   const handleDataReload = async () => {
     setIsRefreshing(true);
-    await loadData(true); // Silent load to avoid full page loader
+    await loadData(true);
     setIsRefreshing(false);
   };
 
   // Settings Handlers
-  const handleUpdateAcademicYear = (year: string) => {
-    saveAcademicYear(year);
+  const handleUpdateAcademicYear = async (year: string) => {
+    await saveAcademicYear(year);
     setAcademicYear(year);
   };
 
-  const handleUpdateSchoolName = (name: string) => {
-    saveSchoolName(name);
+  const handleUpdateSchoolName = async (name: string) => {
+    await saveSchoolName(name);
     setSchoolName(name);
   };
 
   const handleDeleteClassData = async (classGrade: string) => {
     setIsLoading(true);
     await deleteDataByClass(classGrade);
-    await loadData(false); // Reload data fully
+    await loadData(false);
   };
 
   const handlePromoteClass = async (fromClass: string, toClass: string) => {
@@ -238,26 +226,28 @@ const App: React.FC = () => {
     await moveClassData(fromClass, toClass);
     await loadData(false);
   };
-  
-  // User Management Handlers (Now Async)
+
+  // User Management Handlers
   const handleSaveUser = async (user: UserAccount) => {
     try {
-        await saveUserAccount(user);
-        setUserAccounts(getStoredUsers());
-        return true;
+      await saveUserAccount(user);
+      const updatedUsers = await getStoredUsers();
+      setUserAccounts(updatedUsers);
+      return true;
     } catch (e: any) {
-        alert(e.message || "Gagal menyimpan user");
-        return false;
+      alert(e.message || "Gagal menyimpan user");
+      return false;
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-     try {
-       await deleteUserAccount(userId);
-       setUserAccounts(getStoredUsers());
-     } catch (e: any) {
-        alert("Gagal menghapus user: " + e.message);
-     }
+    try {
+      await deleteUserAccount(userId);
+      const updatedUsers = await getStoredUsers();
+      setUserAccounts(updatedUsers);
+    } catch (e: any) {
+      alert("Gagal menghapus user: " + e.message);
+    }
   };
 
   // Render Logic
@@ -275,7 +265,7 @@ const App: React.FC = () => {
     }
 
     if (error) {
-       return (
+      return (
         <div className="flex flex-col items-center justify-center h-[60vh] text-danger text-center max-w-md mx-auto">
           <AlertCircle className="w-16 h-16 mb-4" />
           <h3 className="text-xl font-bold mb-2">Terjadi Kesalahan</h3>
@@ -290,18 +280,18 @@ const App: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return (
-          <Dashboard 
-            students={students} 
-            records={records} 
-            onRefresh={handleDataReload} 
+          <Dashboard
+            students={students}
+            records={records}
+            onRefresh={handleDataReload}
             isLoading={isRefreshing}
           />
         );
       case 'students':
         return (
-          <Students 
-            students={students} 
-            records={records} 
+          <Students
+            students={students}
+            records={records}
             onAddStudent={handleAddStudent}
             onUpdateStudent={handleUpdateStudent}
             onDeleteStudent={handleDeleteStudent}
@@ -313,7 +303,7 @@ const App: React.FC = () => {
         return <Reports students={students} records={records} userRole={userRole} />;
       case 'settings':
         return (
-          <Settings 
+          <Settings
             currentAcademicYear={academicYear}
             onUpdateAcademicYear={handleUpdateAcademicYear}
             currentSchoolName={schoolName}
@@ -336,19 +326,19 @@ const App: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-gray-900">
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       <div className={`fixed md:relative z-40 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-        <Sidebar 
-          currentPage={currentPage} 
+        <Sidebar
+          currentPage={currentPage}
           onNavigate={(page) => {
             setCurrentPage(page);
             setIsMobileMenuOpen(false);
-          }} 
+          }}
           academicYear={academicYear}
           schoolName={schoolName}
           userRole={userRole}
@@ -360,7 +350,7 @@ const App: React.FC = () => {
           <div className="font-bold text-lg text-primary flex items-center gap-2">
             AbsensiKu
           </div>
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(true)}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
           >
@@ -384,13 +374,13 @@ const App: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-800 mb-2">Konfirmasi Keluar</h3>
             <p className="text-gray-500 mb-6">Apakah Anda yakin ingin keluar dari aplikasi?</p>
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setIsLogoutModalOpen(false)}
                 className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 font-medium transition-colors"
               >
                 Batal
               </button>
-              <button 
+              <button
                 onClick={handleLogoutConfirm}
                 className="flex-1 px-4 py-2.5 text-white bg-red-500 rounded-xl hover:bg-red-600 font-medium transition-colors shadow-lg shadow-red-200"
               >
